@@ -1,0 +1,29 @@
+/* This is your new Dashboard.css file */
+
+.dashboard-card {
+  /* This centers the card */
+  max-width: 800px;
+  margin: 2rem auto;
+
+  /* This creates the "card" effect */
+  padding: 2rem;
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.prompt-textarea {
+  /* This styles the text area */
+  width: 100%;
+  box-sizing: border-box; /* Prevents padding from breaking layout */
+  height: 200px;
+  font-family: monospace;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+
+  /* This fixes your dark mode text issue */
+  background-color: #f9f9f9;
+  color: #000000;
+}
