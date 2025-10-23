@@ -1,5 +1,23 @@
 /* This is your new Dashboard.css file */
 
+#mainPrompt { /* Target the specific textarea by its ID */
+  /* Keep existing styles consistent */
+  width: 100%;
+  box-sizing: border-box;
+  font-family: monospace;
+  padding: 10px;
+  border: 1px solid var(--border-color, #ccc); /* Use variable with fallback */
+  border-radius: 4px;
+  background-color: var(--textarea-bg, #f9f9f9); /* Use variable with fallback */
+  color: var(--textarea-text, #000000);       /* Use variable with fallback */
+
+  /* --- Styles for Auto-Resize --- */
+  min-height: 100px;  /* Set your desired initial minimum height */
+  max-height: 400px; /* Optional: Limit growth */
+  overflow-y: auto;   /* Show scrollbar only if max-height is reached */
+  resize: none;       /* Disable the manual resize handle */
+}
+
 .dashboard-card {
   /* This centers the card */
   max-width: 800px;
@@ -23,7 +41,203 @@
   border: 1px solid #ccc;
   border-radius: 4px;
 
+
+
   /* This fixes your dark mode text issue */
   background-color: #f9f9f9;
   color: #000000;
+}
+
+/* --- Button Styles --- */
+
+/* Style for all buttons inside the dashboard card */
+.dashboard-card button {
+  padding: 14px 28px; /* Increase padding (top/bottom, left/right) */
+  font-size: 1.5rem;    /* Increase font size slightly */
+  cursor: pointer;
+  border-radius: 5px;
+  border: none;
+  background-color: #007aff; /* Example blue color */
+  color: white;
+  transition: background-color 0.2s ease; /* Smooth hover effect */
+}
+
+/* Style for disabled buttons */
+.dashboard-card button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Style for hover (optional) */
+.dashboard-card button:not(:disabled):hover {
+  background-color: #005bb5;
+}
+
+/* Specific margin for the Sign Out button if needed */
+.dashboard-card button:last-of-type { /* Targets the Sign Out button */
+  margin-top: 2rem;
+  background-color: #dc3545; /* Example red color for sign out */
+}
+.dashboard-card button:last-of-type:hover {
+  background-color: #c82333;
+}
+
+/* --- Toggle Switch Styles --- */
+
+.toggle-switch-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem; /* Space between toggles */
+  max-width: 600px; /* Limit width to prevent extreme separation */
+}
+
+.toggle-switch-label {
+  /* Remove margin-right: auto */
+  margin-left: 0.5rem;
+  cursor: pointer;
+  /* Make text slightly larger and bolder */
+  font-size: 1.05rem;
+  /* font-weight: 500; /* Optional: uncomment for bolder text */
+  /* Ensure label doesn't wrap awkwardly */
+  flex-shrink: 0; /* Prevent label from shrinking */
+  padding-right: 1rem; /* Add some space before the switch */
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  /* Remove margin-left, container handles spacing */
+  flex-shrink: 0; /* Prevent switch from shrinking */
+}
+
+/* Hide default HTML checkbox */
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 28px; /* Make it rounded */
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; /* Size of the circle */
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%; /* Make it a circle */
+}
+
+input:checked + .slider {
+  background-color: #4CAF50; /* Green when checked (like Apple) */
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #4CAF50;
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px); /* Move circle to the right */
+}
+
+/* --- Tag Input Styles --- */
+
+.tag-input-container {
+  margin-top: 1rem;
+}
+
+.tag-input-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tag-input-field {
+  flex-grow: 1; /* Take remaining space */
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-right: 0.5rem;
+  background-color: var(--textarea-bg); /* Use similar bg/color */
+  color: var(--textarea-text);
+}
+
+.tag-input-button {
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  /* Use button styles, but maybe slightly smaller */
+  min-width: auto;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem; /* Space between tags */
+  padding: 0.5rem 0;
+  min-height: 40px; /* Ensure it has some height even when empty */
+  /* Optional: add a light border or background */
+  /* border: 1px dashed var(--border-color); */
+  /* background-color: #f0f0f0; */
+}
+
+.tag-item {
+  display: inline-flex; /* Align text and button */
+  align-items: center;
+  background-color: #e0e0e0; /* Light grey background */
+  color: #333; /* Darker text */
+  padding: 5px 10px;
+  border-radius: 15px; /* Rounded pill shape */
+  font-size: 0.9rem;
+  font-family: monospace;
+}
+
+/* Dark mode adjustments for tags */
+@media (prefers-color-scheme: dark) {
+  .tag-item {
+    background-color: #444; /* Darker grey */
+    color: #eee; /* Lighter text */
+  }
+}
+
+.tag-remove-button {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  color: inherit; /* Use tag text color */
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 2px; /* Small padding */
+  line-height: 1; /* Align 'x' better */
+}
+
+.tag-remove-button:hover {
+  color: red;
+}
+
+/* Make helper text smaller */
+.list-helper-text {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+@media (prefers-color-scheme: dark) {
+  .list-helper-text { color: #aaa; }
 }
