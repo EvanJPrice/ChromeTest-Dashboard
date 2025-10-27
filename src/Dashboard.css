@@ -13,8 +13,7 @@
 
   /* --- Styles for Auto-Resize --- */
   min-height: 100px;  /* Set your desired initial minimum height */
-  max-height: 400px; /* Optional: Limit growth */
-  overflow-y: auto;   /* Show scrollbar only if max-height is reached */
+  overflow-y: hidden;   /* Show scrollbar only if max-height is reached */
   resize: none;       /* Disable the manual resize handle */
 }
 
@@ -35,7 +34,6 @@
   /* This styles the text area */
   width: 100%;
   box-sizing: border-box; /* Prevents padding from breaking layout */
-  height: 200px;
   font-family: monospace;
   padding: 10px;
   border: 1px solid #ccc;

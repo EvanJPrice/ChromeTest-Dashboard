@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -62,6 +62,19 @@ function Dashboard({ session }) {
     const [blockListArray, setBlockListArray] = useState([]);
     const [currentAllowInput, setCurrentAllowInput] = useState('');
     const [currentBlockInput, setCurrentBlockInput] = useState('');
+    const mainPromptRef = useRef(null);
+
+    // --- Auto-Resize Handler for Main Prompt ---
+const handleTextAreaChange = (event) => {
+  const textarea = event.target;
+  console.log("Handler Running...");
+    setMainPrompt(event.target.value); // Update state
+
+    // Auto-resize logic:
+    textarea.style.height = 'auto'; // Temporarily shrink
+    console.log("Scroll Height:", textarea.scrollHeight);
+    textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
+};
 
     // --- Styles ---
     const dashboardCardStyles = { /* ... keep existing styles ... */ };
@@ -90,6 +103,19 @@ function Dashboard({ session }) {
         }
         loadUserData();
     }, [session]);
+
+    // --- ADD THIS EFFECT ---
+    // This effect runs *after* the component renders
+    // and whenever 'mainPrompt' changes.
+    useEffect(() => {
+        if (mainPromptRef.current) {
+            console.log("Resizing textarea on load/change...");
+            const textarea = mainPromptRef.current;
+            textarea.style.height = 'auto'; // Temporarily shrink
+            textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
+        }
+    }, [mainPrompt]); // Dependency: Run this when mainPrompt changes
+    // --- END OF NEW EFFECT ---
 
     // --- Handle checkbox changes ---
     const handleCategoryChange = (event) => {
@@ -131,9 +157,10 @@ function Dashboard({ session }) {
         e.preventDefault(); setLoading(true); setMessage(null);
         const { data: { user } } = await supabase.auth.getUser();
         let finalPrompt = mainPrompt.trim();
-        const selectedCategories = Object.entries(blockedCategories).filter(([, v]) => v === true).map(([k]) => BLOCKED_CATEGORIES.find(c => c.id === k)?.label || k);
-        if (selectedCategories.length > 0) { finalPrompt += `\n\n**Explicitly Blocked Categories:**\n- ${selectedCategories.join('\n- ')}`; }
-        console.log("Saving Prompt:", finalPrompt); console.log("Saving Lists:", { allowListArray, blockListArray });
+        console.log("Saving Prompt:", finalPrompt);
+        console.log("Saving Lists:", { allowListArray, blockListArray });
+        console.log("Saving Blocked Categories:", blockedCategories);
+        
         const updates = { user_id: user.id, prompt: finalPrompt, blocked_categories: blockedCategories, allow_list: allowListArray, block_list: blockListArray };
         let { error } = await supabase.from('rules').upsert(updates, { onConflict: 'user_id' });
         if (error) { console.error("Upsert error:", error); setMessage(`Error: ${error.message}`); } else { setMessage('Rule saved!'); }
@@ -161,10 +188,10 @@ function Dashboard({ session }) {
                     Your Main Instruction Prompt:
                 </label>
                 <textarea
-                    id="mainPrompt" style={textAreaStyles}
+                    id="mainPrompt" 
+                    ref={mainPromptRef}
                     placeholder="e.g., I'm a student trying to focus..."
-                    value={mainPrompt} onChange={(e) => setMainPrompt(e.target.value)}
-                    rows={6}
+                    value={mainPrompt} onChange={handleTextAreaChange}
                 />
 
                 <div style={helperSectionStyles}>
