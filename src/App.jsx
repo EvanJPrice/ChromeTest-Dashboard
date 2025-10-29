@@ -327,7 +327,7 @@ export default function App() {
         <div className="container" style={{ padding: '50px 0 100px 0' }}>
             {!session ? (
                 <div style={{maxWidth: '400px', margin: 'auto'}}>
-                    <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={[]} />
+                    <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={['google']} />
                 </div>
             ) : (
                 <Dashboard key={session.user.id} session={session} />
