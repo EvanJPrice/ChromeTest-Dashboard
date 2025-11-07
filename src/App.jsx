@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import FullHistoryModal from './FullHistoryModal.jsx'; // <-- 1. IMPORT THE NEW COMPONENT
+import FullHistoryModal from './FullHistoryModal.jsx'; // 1. IMPORT THE NEW COMPONENT
 // CSS is imported in main.jsx
 
 // --- Helper function to generate API key ---
@@ -64,18 +64,16 @@ function Dashboard({ session }) {
     const [currentAllowInput, setCurrentAllowInput] = useState('');
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
-    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false); // <-- 2. ADD MODAL STATE
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false); // 2. ADD MODAL STATE
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
     const handleTextAreaChange = (event) => {
         const textarea = event.target;
-        console.log("Handler Running...");
         setMainPrompt(event.target.value); // Update state
 
         // Auto-resize logic:
         textarea.style.height = 'auto'; // Temporarily shrink
-        console.log("Scroll Height:", textarea.scrollHeight);
         textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
     };
 
@@ -110,7 +108,6 @@ function Dashboard({ session }) {
     // --- Auto-resize text area on load ---
     useEffect(() => {
         if (mainPromptRef.current) {
-            console.log("Resizing textarea on load/change...");
             const textarea = mainPromptRef.current;
             textarea.style.height = 'auto'; // Temporarily shrink
             textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
@@ -201,9 +198,6 @@ function Dashboard({ session }) {
         e.preventDefault(); setLoading(true); setMessage(null);
         const { data: { user } } = await supabase.auth.getUser();
         let finalPrompt = mainPrompt.trim();
-        console.log("Saving Prompt:", finalPrompt);
-        console.log("Saving Lists:", { allowListArray, blockListArray });
-        console.log("Saving Blocked Categories:", blockedCategories);
         
         const updates = { user_id: user.id, prompt: finalPrompt, blocked_categories: blockedCategories, allow_list: allowListArray, block_list: blockListArray };
         let { error } = await supabase.from('rules').upsert(updates, { onConflict: 'user_id' });
@@ -356,6 +350,7 @@ function Dashboard({ session }) {
                 View Full History
             </button>
             {/* --- END LOG FEED SECTION --- */}
+
 
             {/* --- How To Section --- */}
             <hr style={{ margin: '2rem 0' }} />

@@ -27,7 +27,7 @@ export default function FullHistoryModal({ isOpen, onClose, session }) {
             }
             fetchTotalCount();
         }
-    }, [isOpen, session]); // Re-fetch count if modal is opened
+    }, [isOpen, session]);
 
     // Fetch a specific page of logs when the page or open state changes
     useEffect(() => {
