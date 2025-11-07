@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import FullHistoryModal from './FullHistoryModal.jsx'; // 1. IMPORT THE NEW COMPONENT
+import FullHistoryModal from './FullHistoryModal.jsx'; // Make sure this import is here
 // CSS is imported in main.jsx
 
 // --- Helper function to generate API key ---
@@ -64,7 +64,7 @@ function Dashboard({ session }) {
     const [currentAllowInput, setCurrentAllowInput] = useState('');
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
-    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false); // 2. ADD MODAL STATE
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
@@ -315,18 +315,7 @@ function Dashboard({ session }) {
                  </div>
             </form>
 
-            {/* --- API Key Section --- */}
-            <hr style={{ margin: '2rem 0' }} />
-            <h2>Your API Key</h2>
-            <p>Copy this key and paste it into your Chrome extension's settings.</p>
-            <div style={apiKeyBoxStyles}>
-                {apiKey ? apiKey : "No key generated yet. Click below."}
-            </div>
-            <button style={{marginTop: '1rem'}} onClick={regenerateApiKey} disabled={loading}>
-                {loading ? '...' : (apiKey ? 'Regenerate API Key' : 'Generate API Key')}
-            </button>
-
-            {/* --- LOG FEED SECTION --- */}
+            {/* --- START: LOG FEED SECTION (MOVED) --- */}
             <hr style={{ margin: '2rem 0' }} />
             <h2>Recent Activity</h2>
             <div className="log-feed-container">
@@ -345,12 +334,21 @@ function Dashboard({ session }) {
                     </ul>
                 )}
             </div>
-            {/* --- 3. ADD "VIEW FULL HISTORY" BUTTON --- */}
             <button type="button" className="view-history-button" onClick={() => setIsHistoryModalOpen(true)}>
                 View Full History
             </button>
-            {/* --- END LOG FEED SECTION --- */}
+            {/* --- END: LOG FEED SECTION (MOVED) --- */}
 
+            {/* --- API Key Section (MOVED) --- */}
+            <hr style={{ margin: '2rem 0' }} />
+            <h2>Your API Key</h2>
+            <p>Copy this key and paste it into your Chrome extension's settings.</p>
+            <div style={apiKeyBoxStyles}>
+                {apiKey ? apiKey : "No key generated yet. Click below."}
+            </div>
+            <button style={{marginTop: '1rem'}} onClick={regenerateApiKey} disabled={loading}>
+                {loading ? '...' : (apiKey ? 'Regenerate API Key' : 'Generate API Key')}
+            </button>
 
             {/* --- How To Section --- */}
             <hr style={{ margin: '2rem 0' }} />
@@ -366,7 +364,7 @@ function Dashboard({ session }) {
                 Sign Out
             </button>
 
-            {/* --- 4. RENDER THE MODAL (it's invisible until isOpen is true) --- */}
+            {/* --- RENDER THE MODAL (it's invisible until isOpen is true) --- */}
             <FullHistoryModal 
                 isOpen={isHistoryModalOpen} 
                 onClose={() => setIsHistoryModalOpen(false)} 
