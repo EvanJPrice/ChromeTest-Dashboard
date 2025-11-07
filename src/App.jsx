@@ -62,19 +62,20 @@ function Dashboard({ session }) {
     const [blockListArray, setBlockListArray] = useState([]);
     const [currentAllowInput, setCurrentAllowInput] = useState('');
     const [currentBlockInput, setCurrentBlockInput] = useState('');
+    const [logs, setLogs] = useState([]);
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
-const handleTextAreaChange = (event) => {
-  const textarea = event.target;
-  console.log("Handler Running...");
-    setMainPrompt(event.target.value); // Update state
+    const handleTextAreaChange = (event) => {
+        const textarea = event.target;
+        console.log("Handler Running...");
+        setMainPrompt(event.target.value); // Update state
 
-    // Auto-resize logic:
-    textarea.style.height = 'auto'; // Temporarily shrink
-    console.log("Scroll Height:", textarea.scrollHeight);
-    textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
-};
+        // Auto-resize logic:
+        textarea.style.height = 'auto'; // Temporarily shrink
+        console.log("Scroll Height:", textarea.scrollHeight);
+        textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
+    };
 
     // --- Styles ---
     const dashboardCardStyles = { /* ... keep existing styles ... */ };
@@ -104,9 +105,7 @@ const handleTextAreaChange = (event) => {
         loadUserData();
     }, [session]);
 
-    // --- ADD THIS EFFECT ---
-    // This effect runs *after* the component renders
-    // and whenever 'mainPrompt' changes.
+    // --- Auto-resize text area on load ---
     useEffect(() => {
         if (mainPromptRef.current) {
             console.log("Resizing textarea on load/change...");
@@ -114,8 +113,60 @@ const handleTextAreaChange = (event) => {
             textarea.style.height = 'auto'; // Temporarily shrink
             textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
         }
-    }, [mainPrompt]); // Dependency: Run this when mainPrompt changes
-    // --- END OF NEW EFFECT ---
+    }, [mainPrompt]);
+
+    // --- START: MODIFIED EFFECT TO LOAD LOGS + SUBSCRIBE TO REAL-TIME ---
+    useEffect(() => {
+        // 1. Get the current user's ID from the session prop
+        const currentUserId = session?.user?.id;
+        if (!currentUserId) return; // Don't do anything if we don't have a user ID
+
+        // 2. Initial Fetch: Get logs that already exist on page load
+        async function fetchLogs() {
+            let { data: logData, error } = await supabase
+                .from('blocking_log')
+                .select('*')
+                .eq('user_id', currentUserId) // Only get this user's logs
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (error) {
+                console.error("Error fetching initial logs:", error);
+            } else {
+                setLogs(logData || []);
+            }
+        }
+        
+        fetchLogs(); // Run the initial fetch
+
+        // 3. Real-Time Subscription: Listen for NEW logs
+        const logChannel = supabase
+            .channel(`public:blocking_log:user_id=eq.${currentUserId}`) // A unique channel name per user
+            .on(
+                'postgres_changes', // Listen to database changes
+                {
+                    event: 'INSERT', // Specifically for new rows
+                    schema: 'public',
+                    table: 'blocking_log',
+                    filter: `user_id=eq.${currentUserId}` // Only get inserts for this user
+                },
+                (payload) => {
+                    // This function runs every time a new log is inserted
+                    console.log('New log received!', payload.new);
+                    // Add the new log to the *beginning* of the state array
+                    // We use a function here to ensure we get the latest state
+                    setLogs(prevLogs => [payload.new, ...prevLogs]);
+                }
+            )
+            .subscribe(); // Start listening
+
+        // 4. Cleanup: Unsubscribe when the component unmounts
+        return () => {
+            supabase.removeChannel(logChannel);
+        };
+
+    }, [session]); // This effect depends on the session (user)
+    // --- END: MODIFIED EFFECT ---
 
     // --- Handle checkbox changes ---
     const handleCategoryChange = (event) => {
@@ -286,6 +337,27 @@ const handleTextAreaChange = (event) => {
             <button style={{marginTop: '1rem'}} onClick={regenerateApiKey} disabled={loading}>
                 {loading ? '...' : (apiKey ? 'Regenerate API Key' : 'Generate API Key')}
             </button>
+
+            {/* --- LOG FEED SECTION (Copied from your file) --- */}
+            <hr style={{ margin: '2rem 0' }} />
+            <h2>Recent Activity</h2>
+            <div className="log-feed-container">
+                {logs.length === 0 ? (
+                    <p>No blocking activity recorded yet.</p>
+                ) : (
+                    <ul className="log-feed-list">
+                        {logs.map(log => (
+                            <li key={log.id} className={`log-item log-item-${log.decision.toLowerCase()}`}>
+                                <span className="log-decision">{log.decision}</span>
+                                <span className="log-url" title={log.url}>{log.page_title || log.domain || 'Unknown Page'}</span>
+                                <span className="log-reason">({log.reason})</span>
+                                <span className="log-time">{new Date(log.created_at).toLocaleString()}</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            {/* --- END: LOG FEED SECTION --- */}
 
             {/* --- How To Section --- */}
             <hr style={{ margin: '2rem 0' }} />

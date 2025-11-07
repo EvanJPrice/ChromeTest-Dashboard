@@ -239,3 +239,68 @@ input:checked + .slider:before {
 @media (prefers-color-scheme: dark) {
   .list-helper-text { color: #aaa; }
 }
+
+/* --- Log Feed Styles --- */
+.log-feed-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  text-align: left;
+}
+
+.log-feed-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.log-item {
+  display: grid;
+  grid-template-areas: 
+    "decision url reason"
+    "decision time time";
+  grid-template-columns: 60px 1fr auto;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-decision {
+  grid-area: decision;
+  font-weight: bold;
+  font-size: 0.9rem;
+  align-self: center;
+}
+
+/* Colors for decisions in Log Feed */
+.log-item-block .log-decision { color: #dc3545; }
+.log-item-allow .log-decision { color: #28a745; }
+
+.log-url {
+  grid-area: url;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-reason {
+  grid-area: reason;
+  font-style: italic;
+  color: #666;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.log-time {
+  grid-area: time;
+  font-size: 0.8rem;
+  color: #888;
+}
