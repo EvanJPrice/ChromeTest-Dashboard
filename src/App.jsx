@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
+import FullHistoryModal from './FullHistoryModal.jsx'; // <-- 1. IMPORT THE NEW COMPONENT
 // CSS is imported in main.jsx
 
 // --- Helper function to generate API key ---
@@ -63,6 +64,7 @@ function Dashboard({ session }) {
     const [currentAllowInput, setCurrentAllowInput] = useState('');
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false); // <-- 2. ADD MODAL STATE
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
@@ -115,18 +117,16 @@ function Dashboard({ session }) {
         }
     }, [mainPrompt]);
 
-    // --- START: MODIFIED EFFECT TO LOAD LOGS + SUBSCRIBE TO REAL-TIME ---
+    // --- Load user logs AND subscribe to new ones ---
     useEffect(() => {
-        // 1. Get the current user's ID from the session prop
         const currentUserId = session?.user?.id;
-        if (!currentUserId) return; // Don't do anything if we don't have a user ID
+        if (!currentUserId) return; 
 
-        // 2. Initial Fetch: Get logs that already exist on page load
         async function fetchLogs() {
             let { data: logData, error } = await supabase
                 .from('blocking_log')
                 .select('*')
-                .eq('user_id', currentUserId) // Only get this user's logs
+                .eq('user_id', currentUserId)
                 .order('created_at', { ascending: false })
                 .limit(20);
 
@@ -136,37 +136,30 @@ function Dashboard({ session }) {
                 setLogs(logData || []);
             }
         }
-        
-        fetchLogs(); // Run the initial fetch
+        fetchLogs();
 
-        // 3. Real-Time Subscription: Listen for NEW logs
         const logChannel = supabase
-            .channel(`public:blocking_log:user_id=eq.${currentUserId}`) // A unique channel name per user
+            .channel(`public:blocking_log:user_id=eq.${currentUserId}`)
             .on(
-                'postgres_changes', // Listen to database changes
+                'postgres_changes',
                 {
-                    event: 'INSERT', // Specifically for new rows
+                    event: 'INSERT',
                     schema: 'public',
                     table: 'blocking_log',
-                    filter: `user_id=eq.${currentUserId}` // Only get inserts for this user
+                    filter: `user_id=eq.${currentUserId}`
                 },
                 (payload) => {
-                    // This function runs every time a new log is inserted
                     console.log('New log received!', payload.new);
-                    // Add the new log to the *beginning* of the state array
-                    // We use a function here to ensure we get the latest state
                     setLogs(prevLogs => [payload.new, ...prevLogs]);
                 }
             )
-            .subscribe(); // Start listening
+            .subscribe();
 
-        // 4. Cleanup: Unsubscribe when the component unmounts
         return () => {
             supabase.removeChannel(logChannel);
         };
 
-    }, [session]); // This effect depends on the session (user)
-    // --- END: MODIFIED EFFECT ---
+    }, [session]);
 
     // --- Handle checkbox changes ---
     const handleCategoryChange = (event) => {
@@ -235,6 +228,7 @@ function Dashboard({ session }) {
             <p>Tell your AI helper your goals below. Use the optional helpers for common scenarios.</p>
 
             <form onSubmit={updateRule}>
+                {/* ... (Your form content: mainPrompt, helpers, lists, save button) ... */}
                 <label htmlFor="mainPrompt" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                     Your Main Instruction Prompt:
                 </label>
@@ -338,7 +332,7 @@ function Dashboard({ session }) {
                 {loading ? '...' : (apiKey ? 'Regenerate API Key' : 'Generate API Key')}
             </button>
 
-            {/* --- LOG FEED SECTION (Copied from your file) --- */}
+            {/* --- LOG FEED SECTION --- */}
             <hr style={{ margin: '2rem 0' }} />
             <h2>Recent Activity</h2>
             <div className="log-feed-container">
@@ -357,7 +351,11 @@ function Dashboard({ session }) {
                     </ul>
                 )}
             </div>
-            {/* --- END: LOG FEED SECTION --- */}
+            {/* --- 3. ADD "VIEW FULL HISTORY" BUTTON --- */}
+            <button type="button" className="view-history-button" onClick={() => setIsHistoryModalOpen(true)}>
+                View Full History
+            </button>
+            {/* --- END LOG FEED SECTION --- */}
 
             {/* --- How To Section --- */}
             <hr style={{ margin: '2rem 0' }} />
@@ -372,6 +370,13 @@ function Dashboard({ session }) {
             <button style={{marginTop: '2rem', display: 'block'}} onClick={() => supabase.auth.signOut()}>
                 Sign Out
             </button>
+
+            {/* --- 4. RENDER THE MODAL (it's invisible until isOpen is true) --- */}
+            <FullHistoryModal 
+                isOpen={isHistoryModalOpen} 
+                onClose={() => setIsHistoryModalOpen(false)} 
+                session={session} 
+            />
         </div>
     );
 }
