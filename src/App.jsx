@@ -65,6 +65,7 @@ function Dashboard({ session }) {
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [lastSeen, setLastSeen] = useState(null); 
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
@@ -88,7 +89,7 @@ function Dashboard({ session }) {
         async function loadUserData() {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
-            let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list').eq('user_id', user.id).single();
+            let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list, last_seen').eq('user_id', user.id).single();
             if (error && error.code !== 'PGRST116') { console.error('Error loading data:', error); /*...*/ }
             const initialCategories = {}; BLOCKED_CATEGORIES.forEach(cat => initialCategories[cat.id] = false);
             let loadedMainPrompt = '', loadedApiKey = null, loadedCategories = initialCategories, loadedAllowList = [], loadedBlockList = [];
@@ -219,6 +220,26 @@ function Dashboard({ session }) {
     return (
         <div style={dashboardCardStyles}>
             <h2>Your AI Blocking Companion</h2>
+
+            {/* --- ADD STATUS INDICATOR --- */}
+        <div className="status-indicator">
+            {(() => {
+                if (!lastSeen) {
+                    return <span className="status-unknown">Status: Unknown (No activity yet)</span>;
+                }
+                // Get difference in minutes
+                const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
+
+                // If last seen > 15 mins (10 min alarm + 5 min buffer)
+                if (minutesAgo > 15) { 
+                    return <span className="status-inactive">Status: Inactive (Last seen {Math.round(minutesAgo)} minutes ago)</span>;
+                }
+                // Otherwise, it's active
+                return <span className="status-active">Status: Active (Last seen {Math.round(minutesAgo) < 1 ? "just now" : `${Math.round(minutesAgo)} minutes ago`})</span>;
+            })()}
+        </div>
+        {/* --- END STATUS INDICATOR --- */}
+        
             <p>Tell your AI helper your goals below. Use the optional helpers for common scenarios.</p>
 
             <form onSubmit={updateRule}>
