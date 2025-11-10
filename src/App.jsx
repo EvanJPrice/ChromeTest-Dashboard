@@ -71,18 +71,15 @@ function Dashboard({ session }) {
     // --- Auto-Resize Handler for Main Prompt ---
     const handleTextAreaChange = (event) => {
         const textarea = event.target;
-        setMainPrompt(event.target.value); // Update state
-
-        // Auto-resize logic:
-        textarea.style.height = 'auto'; // Temporarily shrink
-        textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
+        setMainPrompt(event.target.value);
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
     };
 
     // --- Styles ---
-    const dashboardCardStyles = { /* ... keep existing styles ... */ };
-    const textAreaStyles = { /* ... keep existing styles ... */ };
-    const apiKeyBoxStyles = { /* ... keep existing styles ... */ };
-    const helperSectionStyles = { /* ... keep existing styles ... */ };
+    const dashboardCardStyles = { /* ... */ };
+    const apiKeyBoxStyles = { /* ... */ };
+    const helperSectionStyles = { /* ... */ };
 
     // --- Load user data ---
     useEffect(() => {
@@ -90,10 +87,9 @@ function Dashboard({ session }) {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
             
-            // 2. MODIFY SELECT TO INCLUDE last_seen
             let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list, last_seen').eq('user_id', user.id).single();
             
-            if (error && error.code !== 'PGRST116') { console.error('Error loading data:', error); /*...*/ }
+            if (error && error.code !== 'PGRST116') { console.error('Error loading data:', error); }
             const initialCategories = {}; BLOCKED_CATEGORIES.forEach(cat => initialCategories[cat.id] = false);
             let loadedMainPrompt = '', loadedApiKey = null, loadedCategories = initialCategories, loadedAllowList = [], loadedBlockList = [];
             
@@ -117,8 +113,8 @@ function Dashboard({ session }) {
     useEffect(() => {
         if (mainPromptRef.current) {
             const textarea = mainPromptRef.current;
-            textarea.style.height = 'auto'; // Temporarily shrink
-            textarea.style.height = `${textarea.scrollHeight}px`; // Set to scrollHeight
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
         }
     }, [mainPrompt]);
 
@@ -138,7 +134,6 @@ function Dashboard({ session }) {
             if (error) {
                 console.error("Error fetching initial logs:", error);
             } else {
-                // Filter out system rules from the initial fetch
                 const filteredLogs = (logData || []).filter(log => log.reason !== 'System Rule (Infra)');
                 setLogs(filteredLogs);
             }
@@ -158,7 +153,6 @@ function Dashboard({ session }) {
                 },
                (payload) => {
                     console.log('New log received!', payload.new);
-                    // Filter out system rules before adding to state
                     if (payload.new.reason !== 'System Rule (Infra)') {
                         setLogs(prevLogs => [payload.new, ...prevLogs]);
                     }
@@ -172,8 +166,8 @@ function Dashboard({ session }) {
 
     }, [session]);
 
-    // --- START: CORRECTED HEARTBEAT EFFECT (MOVED) ---
-    // --- Subscribe to LIVE Heartbeat (last_seen) updates ---
+    // --- !! START: CORRECTED HEARTBEAT EFFECT !! ---
+    // (This is now separate from the log effect, which fixes the error)
     useEffect(() => {
         const currentUserId = session?.user?.id;
         if (!currentUserId) return;
@@ -189,11 +183,8 @@ function Dashboard({ session }) {
                     filter: `user_id=eq.${currentUserId}`
                 },
                 (payload) => {
-                    // This runs when the user's rule row is updated
-                    // Check if the 'last_seen' column was part of the update
                     if (payload.new.last_seen) {
                         console.log('Live heartbeat received!', payload.new.last_seen);
-                        // Update the lastSeen state immediately
                         setLastSeen(payload.new.last_seen);
                     }
                 }
@@ -206,7 +197,7 @@ function Dashboard({ session }) {
         };
 
     }, [session]); // This effect also depends on the session
-    // --- END: CORRECTED HEARTBEAT EFFECT ---
+    // --- !! END: CORRECTED HEARTBEAT EFFECT !! ---
 
     // --- Handle checkbox changes ---
     const handleCategoryChange = (event) => {
@@ -269,24 +260,41 @@ function Dashboard({ session }) {
     return (
         <div style={dashboardCardStyles}>
 
-            {/* --- STATUS INDICATOR (with detailed text) --- */}
+            {/* --- !! START: UPDATED STATUS INDICATOR (with 15-minute logic) !! --- */}
             <div className="status-indicator">
                 {(() => {
                     if (!lastSeen) {
                         return <span className="status-unknown">Status: Unknown</span>;
                     }
+                    
                     const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
                     
-                    if (minutesAgo > 15) { // 10 min alarm + 5 min buffer
-                        return <span className="status-inactive">Status: Inactive (Last seen {Math.round(minutesAgo)} minutes ago)</span>;
+                    // Use a 15-minute buffer (10-min alarm + 5-min buffer)
+                    if (minutesAgo <= 15) { 
+                        return <span className="status-active">Status: Active</span>;
                     }
+
+                    // --- Inactive Logic (with time formatting) ---
+                    const hoursAgo = minutesAgo / 60;
+                    const daysAgo = hoursAgo / 24;
+
+                    let timeLabel;
                     
-                    // If seen in the last 15 minutes
-                    const timeLabel = Math.round(minutesAgo) < 1 ? "just now" : `${Math.round(minutesAgo)} minutes ago`;
-                    return <span className="status-active">Status: Active (Last seen {timeLabel})</span>;
+                    if (daysAgo > 7) {
+                        timeLabel = "over a week ago";
+                    } else if (daysAgo > 1.5) { // Over 1.5 days
+                        timeLabel = `${Math.round(daysAgo)} days ago`;
+                    } else if (hoursAgo > 1.5) { // Over 1.5 hours
+                        timeLabel = `${Math.round(hoursAgo)} hours ago`;
+                    } else {
+                        // e.g., "20 minutes ago"
+                        timeLabel = `${Math.round(minutesAgo)} minutes ago`; 
+                    }
+
+                    return <span className="status-inactive">Status: Inactive (Last seen {timeLabel})</span>;
                 })()}
             </div>
-            {/* --- END STATUS INDICATOR --- */}
+            {/* --- !! END: UPDATED STATUS INDICATOR !! --- */}
 
 
             <h2>Your AI Blocking Companion</h2>
@@ -306,7 +314,7 @@ function Dashboard({ session }) {
                 <div style={helperSectionStyles}>
                     <h3>Optional Helpers</h3>
                     <p>These add context to your main prompt or bypass the AI entirely.</p>
-
+                    
                     <fieldset style={{ border: 'none', padding: '0', margin: '1rem 0' }}>
                         <legend style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Quick Block Common Categories:</legend>
                         {BLOCKED_CATEGORIES.map((category) => (
@@ -323,7 +331,6 @@ function Dashboard({ session }) {
                         ))}
                     </fieldset>
 
-                    {/* --- Always Allow Section --- */}
                     <div className="tag-input-container">
                         <label htmlFor="allowInput" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                             Always Allow These Websites:
@@ -347,7 +354,6 @@ function Dashboard({ session }) {
                         </div>
                     </div>
 
-                    {/* --- Always Block Section --- */}
                     <div className="tag-input-container">
                         <label htmlFor="blockInput" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                             Always Block These Websites:
