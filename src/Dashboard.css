@@ -240,8 +240,6 @@ input:checked + .slider:before {
 
 /* --- Log Feed Styles --- */
 .log-feed-container {
-  max-height: 400px;
-  overflow-y: auto;
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 1rem;

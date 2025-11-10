@@ -65,7 +65,7 @@ function Dashboard({ session }) {
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const [lastSeen, setLastSeen] = useState(null); // <-- 1. ADD NEW STATE
+    const [lastSeen, setLastSeen] = useState(null);
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
@@ -103,7 +103,7 @@ function Dashboard({ session }) {
                 loadedCategories = data.blocked_categories || initialCategories;
                 loadedAllowList = Array.isArray(data.allow_list) ? data.allow_list : [];
                 loadedBlockList = Array.isArray(data.block_list) ? data.block_list : [];
-                setLastSeen(data.last_seen); // <-- 3. SET THE STATE
+                setLastSeen(data.last_seen); 
                 BLOCKED_CATEGORIES.forEach(cat => { if (loadedCategories[cat.id] === undefined) { loadedCategories[cat.id] = false; }});
             }
             
@@ -138,9 +138,12 @@ function Dashboard({ session }) {
             if (error) {
                 console.error("Error fetching initial logs:", error);
             } else {
-                setLogs(logData || []);
+                // Filter out system rules from the initial fetch
+                const filteredLogs = (logData || []).filter(log => log.reason !== 'System Rule (Infra)');
+                setLogs(filteredLogs);
             }
         }
+        
         fetchLogs();
 
         const logChannel = supabase
@@ -153,9 +156,12 @@ function Dashboard({ session }) {
                     table: 'blocking_log',
                     filter: `user_id=eq.${currentUserId}`
                 },
-                (payload) => {
+               (payload) => {
                     console.log('New log received!', payload.new);
-                    setLogs(prevLogs => [payload.new, ...prevLogs]);
+                    // Filter out system rules before adding to state
+                    if (payload.new.reason !== 'System Rule (Infra)') {
+                        setLogs(prevLogs => [payload.new, ...prevLogs]);
+                    }
                 }
             )
             .subscribe();
@@ -165,6 +171,42 @@ function Dashboard({ session }) {
         };
 
     }, [session]);
+
+    // --- START: CORRECTED HEARTBEAT EFFECT (MOVED) ---
+    // --- Subscribe to LIVE Heartbeat (last_seen) updates ---
+    useEffect(() => {
+        const currentUserId = session?.user?.id;
+        if (!currentUserId) return;
+
+        const ruleChannel = supabase
+            .channel(`public:rules:user_id=eq.${currentUserId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE', // Listen for updates
+                    schema: 'public',
+                    table: 'rules',
+                    filter: `user_id=eq.${currentUserId}`
+                },
+                (payload) => {
+                    // This runs when the user's rule row is updated
+                    // Check if the 'last_seen' column was part of the update
+                    if (payload.new.last_seen) {
+                        console.log('Live heartbeat received!', payload.new.last_seen);
+                        // Update the lastSeen state immediately
+                        setLastSeen(payload.new.last_seen);
+                    }
+                }
+            )
+            .subscribe();
+
+        // Cleanup subscription
+        return () => {
+            supabase.removeChannel(ruleChannel);
+        };
+
+    }, [session]); // This effect also depends on the session
+    // --- END: CORRECTED HEARTBEAT EFFECT ---
 
     // --- Handle checkbox changes ---
     const handleCategoryChange = (event) => {
@@ -227,17 +269,21 @@ function Dashboard({ session }) {
     return (
         <div style={dashboardCardStyles}>
 
-            {/* --- 4. ADD STATUS INDICATOR (in top-right) --- */}
+            {/* --- STATUS INDICATOR (with detailed text) --- */}
             <div className="status-indicator">
                 {(() => {
                     if (!lastSeen) {
                         return <span className="status-unknown">Status: Unknown</span>;
                     }
                     const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
+                    
                     if (minutesAgo > 15) { // 10 min alarm + 5 min buffer
-                        return <span className="status-inactive">Status: Inactive</span>;
+                        return <span className="status-inactive">Status: Inactive (Last seen {Math.round(minutesAgo)} minutes ago)</span>;
                     }
-                    return <span className="status-active">Status: Active</span>;
+                    
+                    // If seen in the last 15 minutes
+                    const timeLabel = Math.round(minutesAgo) < 1 ? "just now" : `${Math.round(minutesAgo)} minutes ago`;
+                    return <span className="status-active">Status: Active (Last seen {timeLabel})</span>;
                 })()}
             </div>
             {/* --- END STATUS INDICATOR --- */}
