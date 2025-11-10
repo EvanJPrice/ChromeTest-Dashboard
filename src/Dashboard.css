@@ -28,6 +28,7 @@
   color: #000000;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  position: relative; 
 }
 
 .prompt-textarea {
@@ -415,12 +416,15 @@ input:checked + .slider:before {
     background-color: #e9e9e9;
 }
 
-/* --- Status Indicator Styles --- */
+/* --- Status Indicator Styles (Top-Right) --- */
 .status-indicator {
+  position: absolute;
+  top: 1.5rem; /* Adjust to match padding */
+  right: 2rem;  /* Adjust to match padding */
+
   font-size: 0.9rem;
   font-weight: 500;
-  margin-bottom: 1.5rem;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 4px;
   text-align: center;
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import FullHistoryModal from './FullHistoryModal.jsx'; // Make sure this import is here
+import FullHistoryModal from './FullHistoryModal.jsx'; // Import for history modal
 // CSS is imported in main.jsx
 
 // --- Helper function to generate API key ---
@@ -65,7 +65,7 @@ function Dashboard({ session }) {
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const [lastSeen, setLastSeen] = useState(null); 
+    const [lastSeen, setLastSeen] = useState(null); // <-- 1. ADD NEW STATE
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
@@ -89,17 +89,24 @@ function Dashboard({ session }) {
         async function loadUserData() {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
+            
+            // 2. MODIFY SELECT TO INCLUDE last_seen
             let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list, last_seen').eq('user_id', user.id).single();
+            
             if (error && error.code !== 'PGRST116') { console.error('Error loading data:', error); /*...*/ }
             const initialCategories = {}; BLOCKED_CATEGORIES.forEach(cat => initialCategories[cat.id] = false);
             let loadedMainPrompt = '', loadedApiKey = null, loadedCategories = initialCategories, loadedAllowList = [], loadedBlockList = [];
+            
             if (data) {
-                loadedMainPrompt = data.prompt || ''; loadedApiKey = data.api_key;
+                loadedMainPrompt = data.prompt || ''; 
+                loadedApiKey = data.api_key;
                 loadedCategories = data.blocked_categories || initialCategories;
                 loadedAllowList = Array.isArray(data.allow_list) ? data.allow_list : [];
                 loadedBlockList = Array.isArray(data.block_list) ? data.block_list : [];
+                setLastSeen(data.last_seen); // <-- 3. SET THE STATE
                 BLOCKED_CATEGORIES.forEach(cat => { if (loadedCategories[cat.id] === undefined) { loadedCategories[cat.id] = false; }});
             }
+            
             setMainPrompt(loadedMainPrompt); setApiKey(loadedApiKey); setBlockedCategories(loadedCategories);
             setAllowListArray(loadedAllowList); setBlockListArray(loadedBlockList); setLoading(false);
         }
@@ -219,31 +226,27 @@ function Dashboard({ session }) {
     // --- Render Dashboard UI ---
     return (
         <div style={dashboardCardStyles}>
+
+            {/* --- 4. ADD STATUS INDICATOR (in top-right) --- */}
+            <div className="status-indicator">
+                {(() => {
+                    if (!lastSeen) {
+                        return <span className="status-unknown">Status: Unknown</span>;
+                    }
+                    const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
+                    if (minutesAgo > 15) { // 10 min alarm + 5 min buffer
+                        return <span className="status-inactive">Status: Inactive</span>;
+                    }
+                    return <span className="status-active">Status: Active</span>;
+                })()}
+            </div>
+            {/* --- END STATUS INDICATOR --- */}
+
+
             <h2>Your AI Blocking Companion</h2>
-
-            {/* --- ADD STATUS INDICATOR --- */}
-        <div className="status-indicator">
-            {(() => {
-                if (!lastSeen) {
-                    return <span className="status-unknown">Status: Unknown (No activity yet)</span>;
-                }
-                // Get difference in minutes
-                const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
-
-                // If last seen > 15 mins (10 min alarm + 5 min buffer)
-                if (minutesAgo > 15) { 
-                    return <span className="status-inactive">Status: Inactive (Last seen {Math.round(minutesAgo)} minutes ago)</span>;
-                }
-                // Otherwise, it's active
-                return <span className="status-active">Status: Active (Last seen {Math.round(minutesAgo) < 1 ? "just now" : `${Math.round(minutesAgo)} minutes ago`})</span>;
-            })()}
-        </div>
-        {/* --- END STATUS INDICATOR --- */}
-        
             <p>Tell your AI helper your goals below. Use the optional helpers for common scenarios.</p>
 
             <form onSubmit={updateRule}>
-                {/* ... (Your form content: mainPrompt, helpers, lists, save button) ... */}
                 <label htmlFor="mainPrompt" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                     Your Main Instruction Prompt:
                 </label>
@@ -336,7 +339,7 @@ function Dashboard({ session }) {
                  </div>
             </form>
 
-            {/* --- START: LOG FEED SECTION (MOVED) --- */}
+            {/* --- LOG FEED SECTION --- */}
             <hr style={{ margin: '2rem 0' }} />
             <h2>Recent Activity</h2>
             <div className="log-feed-container">
@@ -358,9 +361,9 @@ function Dashboard({ session }) {
             <button type="button" className="view-history-button" onClick={() => setIsHistoryModalOpen(true)}>
                 View Full History
             </button>
-            {/* --- END: LOG FEED SECTION (MOVED) --- */}
+            {/* --- END LOG FEED SECTION --- */}
 
-            {/* --- API Key Section (MOVED) --- */}
+            {/* --- API Key Section --- */}
             <hr style={{ margin: '2rem 0' }} />
             <h2>Your API Key</h2>
             <p>Copy this key and paste it into your Chrome extension's settings.</p>
@@ -385,7 +388,7 @@ function Dashboard({ session }) {
                 Sign Out
             </button>
 
-            {/* --- RENDER THE MODAL (it's invisible until isOpen is true) --- */}
+            {/* --- RENDER THE MODAL --- */}
             <FullHistoryModal 
                 isOpen={isHistoryModalOpen} 
                 onClose={() => setIsHistoryModalOpen(false)} 
