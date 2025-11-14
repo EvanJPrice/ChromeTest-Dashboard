@@ -37,6 +37,7 @@ function getBaseDomain(urlString) {
 // === Define categories for checkboxes ===
 const BLOCKED_CATEGORIES = [
     { id: 'social', label: 'Social Media (Facebook, Instagram, TikTok, etc.)' },
+    { id: 'shorts', label: 'Shorts / Reels / TikTok (Continuous Scroll)' },
     { id: 'news', label: 'News & Politics' },
     { id: 'entertainment', label: 'Entertainment (Streaming, non-educational YouTube)' },
     { id: 'games', label: 'Games' },
