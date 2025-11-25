@@ -451,16 +451,72 @@ function Dashboard({ session }) {
     );
 }
 
+// === Password Reset Component ===
+function PasswordResetForm({ onSuccess }) {
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState(null);
+
+    const handlePasswordUpdate = async (e) => {
+        e.preventDefault();
+        setLoading(true); setMessage(null);
+        if (password.length < 6) {
+            setMessage("Password must be at least 6 characters.");
+            setLoading(false);
+            return;
+        }
+
+        const { error } = await supabase.auth.updateUser({ password: password });
+
+        if (error) {
+            setMessage(`Error: ${error.message}`);
+        } else {
+            setMessage("Password updated successfully! Redirecting...");
+            setTimeout(() => {
+                onSuccess();
+            }, 1500);
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="container" style={{ padding: '50px 0', maxWidth: '400px', margin: 'auto' }}>
+            <div style={{ background: 'white', padding: '2rem', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+                <h2 style={{ textAlign: 'center', color: '#2563eb', marginBottom: '1rem' }}>Set New Password</h2>
+                <form onSubmit={handlePasswordUpdate}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>New Password</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', borderRadius: '4px', border: '1px solid #ccc' }}
+                        required
+                    />
+                    <button type="submit" disabled={loading} style={{ width: '100%', padding: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        {loading ? 'Updating...' : 'Update Password'}
+                    </button>
+                    {message && <p style={{ marginTop: '1rem', textAlign: 'center', color: message.startsWith('Error') ? 'red' : 'green' }}>{message}</p>}
+                </form>
+            </div>
+        </div>
+    );
+}
+
 // === Main App Component (Handles Auth State) ===
 export default function App() {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [recoveryMode, setRecoveryMode] = useState(false);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
             setSession(initialSession); setLoading(false);
         }).catch(error => { console.error("Error getting initial session:", error); setLoading(false); });
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, updatedSession) => {
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, updatedSession) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setRecoveryMode(true);
+            }
             setSession(updatedSession); setLoading(false);
         });
         return () => { subscription?.unsubscribe(); };
@@ -468,6 +524,10 @@ export default function App() {
 
     if (loading) {
         return (<div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading...</div>);
+    }
+
+    if (recoveryMode) {
+        return <PasswordResetForm onSuccess={() => setRecoveryMode(false)} />;
     }
 
     return (
