@@ -66,7 +66,6 @@ function Dashboard({ session }) {
     const [currentBlockInput, setCurrentBlockInput] = useState('');
     const [logs, setLogs] = useState([]);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const [lastSeen, setLastSeen] = useState(null);
     const mainPromptRef = useRef(null);
 
     // --- Auto-Resize Handler for Main Prompt ---
@@ -88,7 +87,7 @@ function Dashboard({ session }) {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
 
-            let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list, last_seen').eq('user_id', user.id).single();
+            let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list').eq('user_id', user.id).single();
 
             if (error && error.code !== 'PGRST116') { console.error('Error loading data:', error); }
             const initialCategories = {}; BLOCKED_CATEGORIES.forEach(cat => initialCategories[cat.id] = false);
@@ -100,7 +99,6 @@ function Dashboard({ session }) {
                 loadedCategories = data.blocked_categories || initialCategories;
                 loadedAllowList = Array.isArray(data.allow_list) ? data.allow_list : [];
                 loadedBlockList = Array.isArray(data.block_list) ? data.block_list : [];
-                setLastSeen(data.last_seen);
                 BLOCKED_CATEGORIES.forEach(cat => { if (loadedCategories[cat.id] === undefined) { loadedCategories[cat.id] = false; } });
             }
 
@@ -167,38 +165,7 @@ function Dashboard({ session }) {
 
     }, [session]);
 
-    // --- !! START: CORRECTED HEARTBEAT EFFECT !! ---
-    // (This is now separate from the log effect, which fixes the error)
-    useEffect(() => {
-        const currentUserId = session?.user?.id;
-        if (!currentUserId) return;
 
-        const ruleChannel = supabase
-            .channel(`public:rules:user_id=eq.${currentUserId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE', // Listen for updates
-                    schema: 'public',
-                    table: 'rules',
-                    filter: `user_id=eq.${currentUserId}`
-                },
-                (payload) => {
-                    if (payload.new.last_seen) {
-                        console.log('Live heartbeat received!', payload.new.last_seen);
-                        setLastSeen(payload.new.last_seen);
-                    }
-                }
-            )
-            .subscribe();
-
-        // Cleanup subscription
-        return () => {
-            supabase.removeChannel(ruleChannel);
-        };
-
-    }, [session]); // This effect also depends on the session
-    // --- !! END: CORRECTED HEARTBEAT EFFECT !! ---
 
     // --- Handle checkbox changes ---
     const handleCategoryChange = (event) => {
@@ -261,45 +228,11 @@ function Dashboard({ session }) {
     return (
         <div style={dashboardCardStyles}>
 
-            {/* --- !! START: UPDATED STATUS INDICATOR (with 15-minute logic) !! --- */}
-            <div className="status-indicator">
-                {(() => {
-                    if (!lastSeen) {
-                        return <span className="status-unknown">Status: Unknown</span>;
-                    }
-
-                    const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
-
-                    // Use a 15-minute buffer (10-min alarm + 5-min buffer)
-                    if (minutesAgo <= 15) {
-                        return <span className="status-active">Status: Active</span>;
-                    }
-
-                    // --- Inactive Logic (with time formatting) ---
-                    const hoursAgo = minutesAgo / 60;
-                    const daysAgo = hoursAgo / 24;
-
-                    let timeLabel;
-
-                    if (daysAgo > 7) {
-                        timeLabel = "over a week ago";
-                    } else if (daysAgo > 1.5) { // Over 1.5 days
-                        timeLabel = `${Math.round(daysAgo)} days ago`;
-                    } else if (hoursAgo > 1.5) { // Over 1.5 hours
-                        timeLabel = `${Math.round(hoursAgo)} hours ago`;
-                    } else {
-                        // e.g., "20 minutes ago"
-                        timeLabel = `${Math.round(minutesAgo)} minutes ago`;
-                    }
-
-                    return <span className="status-inactive">Status: Inactive (Last seen {timeLabel})</span>;
-                })()}
-            </div>
-            {/* --- !! END: UPDATED STATUS INDICATOR !! --- */}
 
 
-            <h2>Your AI Blocking Companion</h2>
-            <p>Tell your AI helper your goals below. Use the optional helpers for common scenarios.</p>
+
+            <h2>Beacon Blocker Rules</h2>
+            <p>Set your blocking rules below. Use the optional helpers for common scenarios.</p>
 
             <form onSubmit={updateRule}>
                 <label htmlFor="mainPrompt" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
@@ -502,6 +435,208 @@ function PasswordResetForm({ onSuccess }) {
     );
 }
 
+// === Custom Auth Component ===
+function AuthForm({ supabase }) {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState(null);
+
+    const handleAuth = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage(null);
+
+        if (isLogin) {
+            // Login Logic
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+            if (error) setMessage(error.message);
+        } else {
+            // Sign Up Logic
+            if (password.length < 6) {
+                setMessage("Password must be at least 6 characters.");
+                setLoading(false);
+                return;
+            }
+            const { error } = await supabase.auth.signUp({
+                email,
+                password,
+            });
+            if (error) {
+                setMessage(error.message);
+            } else {
+                setMessage("Account created! You are now logged in.");
+            }
+        }
+        setLoading(false);
+    };
+
+    const handleGoogleLogin = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+        });
+        if (error) setMessage(error.message);
+    };
+
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setMessage("Please enter your email address first.");
+            return;
+        }
+        setLoading(true);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin,
+        });
+        if (error) setMessage(error.message);
+        else setMessage("Password reset link sent to your email!");
+        setLoading(false);
+    };
+
+    return (
+        <div className="auth-container">
+            <div className={`auth-card ${isLogin ? 'mode-login' : 'mode-signup'}`}>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <img src="/logo.jpg" alt="Beacon Blocker Logo" style={{ width: '80px', height: '80px', marginBottom: '1rem', borderRadius: '50%' }} />
+                    <h1 style={{ margin: 0, color: isLogin ? 'var(--primary-blue)' : 'var(--primary-red)' }}>
+                        Beacon Blocker
+                    </h1>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                        {isLogin ? 'Sign in to manage your rules' : 'Create an account to get started'}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        marginBottom: '1.5rem',
+                        backgroundColor: 'white',
+                        color: '#333',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        fontSize: '1rem'
+                    }}
+                >
+                    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" fillRule="evenodd" />
+                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.715H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" fillRule="evenodd" />
+                        <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05" fillRule="evenodd" />
+                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.272C4.672 5.14 6.656 3.58 9 3.58z" fill="#EA4335" fillRule="evenodd" />
+                    </svg>
+                    Sign in with Google
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', color: '#94a3b8', fontSize: '0.875rem' }}>
+                    <div style={{ flex: 1, borderBottom: '1px solid #e2e8f0' }}></div>
+                    <span style={{ margin: '0 0.5rem' }}>OR</span>
+                    <div style={{ flex: 1, borderBottom: '1px solid #e2e8f0' }}></div>
+                </div>
+
+                <form onSubmit={handleAuth}>
+                    <div className="form-group">
+                        <label className="form-label">Email Address</label>
+                        <input
+                            type="email"
+                            className="form-input"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="you@example.com"
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Password</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                className="form-input"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                required
+                                style={{ paddingRight: '80px' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '5px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#64748b',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    width: 'auto',
+                                    padding: '5px'
+                                }}
+                            >
+                                {showPassword ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {message && (
+                        <div style={{
+                            padding: '0.75rem',
+                            borderRadius: '8px',
+                            marginBottom: '1rem',
+                            backgroundColor: message.includes('sent') || message.includes('created') ? '#dcfce7' : '#fee2e2',
+                            color: message.includes('sent') || message.includes('created') ? '#166534' : '#991b1b',
+                            fontSize: '0.875rem'
+                        }}>
+                            {message}
+                        </div>
+                    )}
+
+                    <button type="submit" className="auth-button" disabled={loading}>
+                        {loading ? 'Processing...' : (isLogin ? 'Log In' : 'Sign Up')}
+                    </button>
+                </form>
+
+                <div className="auth-toggle">
+                    {isLogin ? (
+                        <>
+                            <p>
+                                <span className="auth-link" onClick={handleForgotPassword}>Forgot Password?</span>
+                            </p>
+                            <p>
+                                Don't have an account?{' '}
+                                <span className="auth-link" onClick={() => { setIsLogin(false); setMessage(null); }}>
+                                    Sign Up
+                                </span>
+                            </p>
+                        </>
+                    ) : (
+                        <p>
+                            Already have an account?{' '}
+                            <span className="auth-link" onClick={() => { setIsLogin(true); setMessage(null); }}>
+                                Log In
+                            </span>
+                        </p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // === Main App Component (Handles Auth State) ===
 export default function App() {
     const [session, setSession] = useState(null);
@@ -531,30 +666,14 @@ export default function App() {
     }
 
     return (
-        <div className="container" style={{ padding: '50px 0 100px 0' }}>
+        <>
             {!session ? (
-                <div style={{ maxWidth: '400px', margin: 'auto', background: 'white', padding: '2rem', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
-                    <h1 style={{ textAlign: 'center', color: '#2563eb', marginBottom: '0.5rem' }}>Beacon Blocker</h1>
-                    <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem' }}>Sign in to manage your rules</p>
-                    <Auth
-                        supabaseClient={supabase}
-                        appearance={{
-                            theme: ThemeSupa,
-                            variables: {
-                                default: {
-                                    colors: {
-                                        brand: '#2563eb',
-                                        brandAccent: '#1d4ed8',
-                                    }
-                                }
-                            }
-                        }}
-                        providers={['google']}
-                    />
-                </div>
+                <AuthForm supabase={supabase} />
             ) : (
-                <Dashboard key={session.user.id} session={session} />
+                <div className="container">
+                    <Dashboard key={session.user.id} session={session} />
+                </div>
             )}
-        </div>
+        </>
     );
 }
