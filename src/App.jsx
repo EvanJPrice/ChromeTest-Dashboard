@@ -23,7 +23,7 @@ function getBaseDomain(urlString) {
         const parts = url.hostname.split('.');
         if (parts.length >= 2) {
             if (parts.length > 2 && parts[parts.length - 2].length <= 3 && parts[parts.length - 1].length <= 3) {
-                 return parts.slice(-3).join('.').toLowerCase(); // e.g., bbc.co.uk
+                return parts.slice(-3).join('.').toLowerCase(); // e.g., bbc.co.uk
             }
             return parts.slice(-2).join('.').toLowerCase(); // e.g., google.com
         }
@@ -87,23 +87,23 @@ function Dashboard({ session }) {
         async function loadUserData() {
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
-            
+
             let { data, error } = await supabase.from('rules').select('prompt, api_key, blocked_categories, allow_list, block_list, last_seen').eq('user_id', user.id).single();
-            
+
             if (error && error.code !== 'PGRST116') { console.error('Error loading data:', error); }
             const initialCategories = {}; BLOCKED_CATEGORIES.forEach(cat => initialCategories[cat.id] = false);
             let loadedMainPrompt = '', loadedApiKey = null, loadedCategories = initialCategories, loadedAllowList = [], loadedBlockList = [];
-            
+
             if (data) {
-                loadedMainPrompt = data.prompt || ''; 
+                loadedMainPrompt = data.prompt || '';
                 loadedApiKey = data.api_key;
                 loadedCategories = data.blocked_categories || initialCategories;
                 loadedAllowList = Array.isArray(data.allow_list) ? data.allow_list : [];
                 loadedBlockList = Array.isArray(data.block_list) ? data.block_list : [];
-                setLastSeen(data.last_seen); 
-                BLOCKED_CATEGORIES.forEach(cat => { if (loadedCategories[cat.id] === undefined) { loadedCategories[cat.id] = false; }});
+                setLastSeen(data.last_seen);
+                BLOCKED_CATEGORIES.forEach(cat => { if (loadedCategories[cat.id] === undefined) { loadedCategories[cat.id] = false; } });
             }
-            
+
             setMainPrompt(loadedMainPrompt); setApiKey(loadedApiKey); setBlockedCategories(loadedCategories);
             setAllowListArray(loadedAllowList); setBlockListArray(loadedBlockList); setLoading(false);
         }
@@ -122,7 +122,7 @@ function Dashboard({ session }) {
     // --- Load user logs AND subscribe to new ones ---
     useEffect(() => {
         const currentUserId = session?.user?.id;
-        if (!currentUserId) return; 
+        if (!currentUserId) return;
 
         async function fetchLogs() {
             let { data: logData, error } = await supabase
@@ -139,7 +139,7 @@ function Dashboard({ session }) {
                 setLogs(filteredLogs);
             }
         }
-        
+
         fetchLogs();
 
         const logChannel = supabase
@@ -152,7 +152,7 @@ function Dashboard({ session }) {
                     table: 'blocking_log',
                     filter: `user_id=eq.${currentUserId}`
                 },
-               (payload) => {
+                (payload) => {
                     console.log('New log received!', payload.new);
                     if (payload.new.reason !== 'System Rule (Infra)') {
                         setLogs(prevLogs => [payload.new, ...prevLogs]);
@@ -230,7 +230,7 @@ function Dashboard({ session }) {
         else { setBlockListArray(prev => prev.filter(domain => domain !== domainToRemove)); }
     };
 
-     // --- Handle Enter Key in Input ---
+    // --- Handle Enter Key in Input ---
     const handleInputKeyDown = (event, listType) => {
         if (event.key === 'Enter') { event.preventDefault(); handleAddDomain(listType); }
     };
@@ -240,7 +240,7 @@ function Dashboard({ session }) {
         e.preventDefault(); setLoading(true); setMessage(null);
         const { data: { user } } = await supabase.auth.getUser();
         let finalPrompt = mainPrompt.trim();
-        
+
         const updates = { user_id: user.id, prompt: finalPrompt, blocked_categories: blockedCategories, allow_list: allowListArray, block_list: blockListArray };
         let { error } = await supabase.from('rules').upsert(updates, { onConflict: 'user_id' });
         if (error) { console.error("Upsert error:", error); setMessage(`Error: ${error.message}`); } else { setMessage('Rule saved!'); }
@@ -267,11 +267,11 @@ function Dashboard({ session }) {
                     if (!lastSeen) {
                         return <span className="status-unknown">Status: Unknown</span>;
                     }
-                    
+
                     const minutesAgo = (new Date() - new Date(lastSeen)) / 1000 / 60;
-                    
+
                     // Use a 15-minute buffer (10-min alarm + 5-min buffer)
-                    if (minutesAgo <= 15) { 
+                    if (minutesAgo <= 15) {
                         return <span className="status-active">Status: Active</span>;
                     }
 
@@ -280,7 +280,7 @@ function Dashboard({ session }) {
                     const daysAgo = hoursAgo / 24;
 
                     let timeLabel;
-                    
+
                     if (daysAgo > 7) {
                         timeLabel = "over a week ago";
                     } else if (daysAgo > 1.5) { // Over 1.5 days
@@ -289,7 +289,7 @@ function Dashboard({ session }) {
                         timeLabel = `${Math.round(hoursAgo)} hours ago`;
                     } else {
                         // e.g., "20 minutes ago"
-                        timeLabel = `${Math.round(minutesAgo)} minutes ago`; 
+                        timeLabel = `${Math.round(minutesAgo)} minutes ago`;
                     }
 
                     return <span className="status-inactive">Status: Inactive (Last seen {timeLabel})</span>;
@@ -306,7 +306,7 @@ function Dashboard({ session }) {
                     Your Main Instruction Prompt:
                 </label>
                 <textarea
-                    id="mainPrompt" 
+                    id="mainPrompt"
                     ref={mainPromptRef}
                     placeholder="e.g., I'm a student trying to focus..."
                     value={mainPrompt} onChange={handleTextAreaChange}
@@ -315,14 +315,14 @@ function Dashboard({ session }) {
                 <div style={helperSectionStyles}>
                     <h3>Optional Helpers</h3>
                     <p>These add context to your main prompt or bypass the AI entirely.</p>
-                    
+
                     <fieldset style={{ border: 'none', padding: '0', margin: '1rem 0' }}>
                         <legend style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Quick Block Common Categories:</legend>
                         {BLOCKED_CATEGORIES.map((category) => (
-                             <div key={category.id} className="toggle-switch-container">
+                            <div key={category.id} className="toggle-switch-container">
                                 <label className="toggle-switch">
                                     <input type="checkbox" id={`cat-${category.id}`} name={category.id}
-                                        checked={blockedCategories[category.id] || false} onChange={handleCategoryChange}/>
+                                        checked={blockedCategories[category.id] || false} onChange={handleCategoryChange} />
                                     <span className="slider"></span>
                                 </label>
                                 <label htmlFor={`cat-${category.id}`} className="toggle-switch-label">
@@ -360,13 +360,13 @@ function Dashboard({ session }) {
                             Always Block These Websites:
                         </label>
                         <div className="tag-input-wrapper">
-                             <input type="text" id="blockInput" className="tag-input-field"
+                            <input type="text" id="blockInput" className="tag-input-field"
                                 placeholder="Type 'facebook' or 'distraction.com', then press Enter or Add"
                                 value={currentBlockInput} onChange={(e) => setCurrentBlockInput(e.target.value)}
                                 onKeyDown={(e) => handleInputKeyDown(e, 'block')} />
                             <button type="button" className="tag-input-button" onClick={() => handleAddDomain('block')}> Add </button>
                         </div>
-                         <p className="list-helper-text">Enter common names or base domains. Pasted URLs will be cleaned.</p>
+                        <p className="list-helper-text">Enter common names or base domains. Pasted URLs will be cleaned.</p>
                         <div className="tag-list">
                             {blockListArray.map((domain) => (
                                 <span key={domain} className="tag-item">
@@ -380,7 +380,7 @@ function Dashboard({ session }) {
                 </div>
 
                 {/* --- Save Button & Message --- */}
-                 <div style={{ marginTop: '2rem', display: 'flex', alignItems: 'center' }}>
+                <div style={{ marginTop: '2rem', display: 'flex', alignItems: 'center' }}>
                     <button type="submit" disabled={loading}>
                         {loading ? 'Saving...' : 'Save Rule'}
                     </button>
@@ -389,7 +389,7 @@ function Dashboard({ session }) {
                             {message}
                         </span>
                     )}
-                 </div>
+                </div>
             </form>
 
             {/* --- LOG FEED SECTION --- */}
@@ -423,7 +423,7 @@ function Dashboard({ session }) {
             <div style={apiKeyBoxStyles}>
                 {apiKey ? apiKey : "No key generated yet. Click below."}
             </div>
-            <button style={{marginTop: '1rem'}} onClick={regenerateApiKey} disabled={loading}>
+            <button style={{ marginTop: '1rem' }} onClick={regenerateApiKey} disabled={loading}>
                 {loading ? '...' : (apiKey ? 'Regenerate API Key' : 'Generate API Key')}
             </button>
 
@@ -437,15 +437,15 @@ function Dashboard({ session }) {
             </ol>
 
             {/* --- Sign Out Button --- */}
-            <button style={{marginTop: '2rem', display: 'block'}} onClick={() => supabase.auth.signOut()}>
+            <button style={{ marginTop: '2rem', display: 'block' }} onClick={() => supabase.auth.signOut()}>
                 Sign Out
             </button>
 
             {/* --- RENDER THE MODAL --- */}
-            <FullHistoryModal 
-                isOpen={isHistoryModalOpen} 
-                onClose={() => setIsHistoryModalOpen(false)} 
-                session={session} 
+            <FullHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                session={session}
             />
         </div>
     );
@@ -473,8 +473,24 @@ export default function App() {
     return (
         <div className="container" style={{ padding: '50px 0 100px 0' }}>
             {!session ? (
-                <div style={{maxWidth: '400px', margin: 'auto'}}>
-                    <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} providers={['google']} />
+                <div style={{ maxWidth: '400px', margin: 'auto', background: 'white', padding: '2rem', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+                    <h1 style={{ textAlign: 'center', color: '#2563eb', marginBottom: '0.5rem' }}>Beacon Blocker</h1>
+                    <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem' }}>Sign in to manage your rules</p>
+                    <Auth
+                        supabaseClient={supabase}
+                        appearance={{
+                            theme: ThemeSupa,
+                            variables: {
+                                default: {
+                                    colors: {
+                                        brand: '#2563eb',
+                                        brandAccent: '#1d4ed8',
+                                    }
+                                }
+                            }
+                        }}
+                        providers={['google']}
+                    />
                 </div>
             ) : (
                 <Dashboard key={session.user.id} session={session} />
